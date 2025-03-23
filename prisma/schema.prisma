@@ -95,28 +95,24 @@ model Lab {
   phone          String
   address        String
   hospitalId     String
-  hospital       Hospital @relation(fields: [hospitalId], references: [id])
+  hospital       Hospital @relation(fields: [hospitalId], references: [id], name: "LabHospital")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   labServices    LabService[]
-  labReports     LabReport[]
+  labReports     LabReport[] @relation("LabLabReports")
   notifications  Notification[]
   profileId      String?
   profile        Profile? @relation(fields: [profileId], references: [id])
 }
 
-model Hospital {
-  id           String   @id @default(cuid())
-  name         String
-  address      String
-  phone        String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  doctors      Doctor[]
-  nursingStaff NursingStaff[]
-  appointments Appointment[]
-  feedbacks    Feedback[]
-  labServices  LabService[] // Lab services provided by the hospital
+model Profile {
+  id          String   @id @default(cuid())
+  role        Role
+  preferences Json?    // JSON field for storing user preferences
+  bio         String?  // Optional bio or description
+  img         String?  // Profile picture
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Appointment {
@@ -137,16 +133,6 @@ model Appointment {
   hospital       Hospital @relation(fields: [hospitalId], references: [id])
   nursingStaff   NursingStaff @relation(fields: [nursingStaffId], references: [id])
   billing        Billing?
-}
-
-model Billing {
-  id             String   @id @default(cuid())
-  appointmentId  String   @unique
-  amount         Float
-  status         BillingStatus
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  appointment    Appointment @relation(fields: [appointmentId], references: [id])
 }
 
 model MedicalRecord {
@@ -176,17 +162,6 @@ model Feedback {
   doctor      Doctor?  @relation(fields: [doctorId], references: [id])
   hospital    Hospital? @relation(fields: [hospitalId], references: [id])
   nursingStaff NursingStaff? @relation(fields: [nursingStaffId], references: [id])
-}
-
-model Schedule {
-  id             String   @id @default(cuid())
-  doctorId       String?
-  nursingStaffId String?
-  day            Day
-  startTime      DateTime
-  endTime        DateTime
-  doctor         Doctor? @relation(fields: [doctorId], references: [id])
-  nursingStaff   NursingStaff? @relation(fields: [nursingStaffId], references: [id])
 }
 
 model Prescription {
@@ -243,16 +218,6 @@ model LabReport {
   patient     Patient    @relation(fields: [patientId], references: [id])
 }
 
-model Profile {
-  id          String   @id @default(cuid())
-  role        Role
-  preferences Json?    // JSON field for storing user preferences
-  bio         String?  // Optional bio or description
-  img         String?  // Profile picture
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
 enum AppointmentStatus {
   PENDING
   CONFIRMED
@@ -269,21 +234,6 @@ enum BillingStatus {
   PENDING
   PAID
   FAILED
-}
-
-enum UserGender {
-  MALE
-  FEMALE
-}
-
-enum Day {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
 }
 
 enum Role {

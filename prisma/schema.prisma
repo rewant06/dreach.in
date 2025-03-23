@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+}
+
+model Patient {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  phone       String
+  address     String
+  age         Int
+  img         String?
+  bloodGroup  String
+  conditions  String[] // List of medical conditions
+  allergies   String[] // List of allergies
+  treatmentPlan String? // Current treatment plan
+  recentNote  String?  // Recent note from doctor
+  medicationSchedule String? // Medication schedule
+  alerts      String[] // Alerts or notifications for the patient
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  appointments Appointment[]
+  medicalRecords MedicalRecord[]
+  feedbacks    Feedback[]
+  prescriptions Prescription[]
+  notifications Notification[]
+  labReports   LabReport[]
+  labServices  LabService[] // Added relation to LabService
+  profileId    String?
+  profile      Profile? @relation(fields: [profileId], references: [id])
+}
+
+model Doctor {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  specialization String
+  phone          String
+  img            String?  // Doctor's profile image
+  hospitalId     String
+  hospital       Hospital @relation(fields: [hospitalId], references: [id])
+  address        String   // Address of the hospital where the doctor is present
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  appointments   Appointment[]
+  feedbacks      Feedback[]
+  schedules      Schedule[]
+  prescriptions  Prescription[]
+  notifications  Notification[]
+  labServices    LabService[] // Lab services requested by the doctor
+  profileId      String?
+  profile        Profile? @relation(fields: [profileId], references: [id])
+}
+
+model NursingStaff {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  phone          String
+  hospitalId     String
+  hospital       Hospital @relation(fields: [hospitalId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  appointments   Appointment[]
+  schedules      Schedule[]
+  notifications  Notification[]
+  profileId      String?
+  profile        Profile? @relation(fields: [profileId], references: [id])
+}
+
+model Lab {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  phone          String
+  address        String
+  hospitalId     String
+  hospital       Hospital @relation(fields: [hospitalId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  labServices    LabService[]
+  labReports     LabReport[]
+  notifications  Notification[]
+  profileId      String?
+  profile        Profile? @relation(fields: [profileId], references: [id])
+}
+
+model Hospital {
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  phone        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  doctors      Doctor[]
+  nursingStaff NursingStaff[]
+  appointments Appointment[]
+  feedbacks    Feedback[]
+  labServices  LabService[] // Lab services provided by the hospital
+}
+
+model Appointment {
+  id             String   @id @default(cuid())
+  patientId      String
+  doctorId       String
+  hospitalId     String
+  nursingStaffId String
+  time           DateTime
+  status         AppointmentStatus
+  type           AppointmentType
+  reason         String
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  doctor         Doctor   @relation(fields: [doctorId], references: [id])
+  hospital       Hospital @relation(fields: [hospitalId], references: [id])
+  nursingStaff   NursingStaff @relation(fields: [nursingStaffId], references: [id])
+  billing        Billing?
+}
+
+model Billing {
+  id             String   @id @default(cuid())
+  appointmentId  String   @unique
+  amount         Float
+  status         BillingStatus
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  appointment    Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+model MedicalRecord {
+  id          String   @id @default(cuid())
+  patientId   String
+  doctorId    String
+  diagnosis   String
+  prescription String
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  patientId   String
+  doctorId    String?
+  hospitalId  String?
+  nursingStaffId String?
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  doctor      Doctor?  @relation(fields: [doctorId], references: [id])
+  hospital    Hospital? @relation(fields: [hospitalId], references: [id])
+  nursingStaff NursingStaff? @relation(fields: [nursingStaffId], references: [id])
+}
+
+model Schedule {
+  id             String   @id @default(cuid())
+  doctorId       String?
+  nursingStaffId String?
+  day            Day
+  startTime      DateTime
+  endTime        DateTime
+  doctor         Doctor? @relation(fields: [doctorId], references: [id])
+  nursingStaff   NursingStaff? @relation(fields: [nursingStaffId], references: [id])
+}
+
+model Prescription {
+  id             String   @id @default(cuid())
+  appointmentId  String
+  doctorId       String
+  patientId      String
+  medicines      String
+  dosage         String
+  instructions   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  appointment    Appointment @relation(fields: [appointmentId], references: [id])
+  doctor         Doctor @relation(fields: [doctorId], references: [id])
+  patient        Patient @relation(fields: [patientId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  role        Role
+  message     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LabService {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  cost        Float
+  hospitalId  String
+  doctorId    String
+  patientId   String
+  labId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  hospital    Hospital @relation(fields: [hospitalId], references: [id])
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  lab         Lab      @relation(fields: [labId], references: [id])
+  labReports  LabReport[]
+}
+
+model LabReport {
+  id          String   @id @default(cuid())
+  labServiceId String
+  patientId   String
+  report      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  labService  LabService @relation(fields: [labServiceId], references: [id])
+  patient     Patient    @relation(fields: [patientId], references: [id])
+}
+
+model Profile {
+  id          String   @id @default(cuid())
+  role        Role
+  preferences Json?    // JSON field for storing user preferences
+  bio         String?  // Optional bio or description
+  img         String?  // Profile picture
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum AppointmentType {
+  HomeVisit
+  InClinic
+  VideoCall
+}
+
+enum BillingStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum UserGender {
+  MALE
+  FEMALE
+}
+
+enum Day {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  NURSING_STAFF
+  PATIENT
+  LAB
+}

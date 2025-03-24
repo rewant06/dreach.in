@@ -20,12 +20,13 @@ enum UserRole {
   DOCTORSASSISTANT
 }
 
-enum ServiceProviderType {
+enum ProviderType {
   DOCTOR
   HOSPITAL
   LAB
   NURSING
 }
+
 
 enum PaymentStatus {
   PAID
@@ -71,7 +72,12 @@ model User {
   nursing           Nursing?
   doctorsAssistant  DoctorsAssistant?
   payments          Payment[]
+  medicalRecords    MedicalRecord[]
+  appointments      Appointment[]
+
 }
+
+// Admin Model
 
 model Admin {
   id                String   @id @default(cuid())
@@ -81,9 +87,8 @@ model Admin {
   canManageProviders Boolean @default(true)
   canViewAllTransactions Boolean @default(true)
   canViewAllAppointments Boolean @default(true)
-  serviceProviders  ServiceProvider[]
-  payments          Payment[]
 }
+// Service User Model
 
 model Patient {
   id                String   @id @default(cuid())
@@ -95,11 +100,21 @@ model Patient {
   bloodGroup        String
   treatmentPlans    TherapyPlan[]
   appointments      Appointment[]
-  medicalRecords    MedicalRecord[]
   prescriptions     Prescription[]
   labResults        LabResult[]
   medications       Medication[]
-  payments          Payment[]
+  feedbacks         Feedback[]
+}
+
+// Service Provider Models
+
+model ServiceProvider {
+   id                String   @id @default(cuid())
+  name              String
+  providerType      ProviderType
+  feedbacks         Feedback[] // Relation to Feedback
+  
+  
 }
 
 model Doctor {
@@ -108,37 +123,23 @@ model Doctor {
   user              User     @relation(fields: [userId], references: [id])
   specialization    String
   hospitalId        String?
-  appointments      Appointment[]
   prescriptions     Prescription[]
-  medicalRecords    MedicalRecord[]
   labResults        LabResult[]
   medications       Medication[]
   assistants        DoctorsAssistant[]
   therapyPlans      TherapyPlan[]
-  payments          Payment[] // Relation to Payment
+  
 }
 
-//
-// Service Models
-//
-model ServiceProvider {
-  id                String   @id @default(cuid())
-  name              String
-  type              ServiceProviderType
-  address           String
-  contactNumber     String
-  email             String   @unique
-  adminId           String
-  admin             Admin    @relation(fields: [adminId], references: [id])
-  appointments      Appointment[]
-}
+
+
 
 model Lab {
   id                String   @id @default(cuid())
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   servicesOffered   String[]
-  payments          Payment[]
+  
 }
 
 model Hospital {
@@ -146,7 +147,7 @@ model Hospital {
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   servicesOffered   String[]
-  payments          Payment[]
+  
 }
 
 model Nursing {
@@ -154,7 +155,7 @@ model Nursing {
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   servicesOffered   String[]
-  payments          Payment[]
+  
 }
 
 //
@@ -172,22 +173,6 @@ model Payment {
   user              User     @relation(fields: [userId], references: [id])
   appointmentId     String?
   appointment       Appointment? @relation(fields: [appointmentId], references: [id])
-  doctorId          String?  // Added field for relation with Doctor
-  doctor            Doctor?  @relation(fields: [doctorId], references: [id]) // Relation to Doctor
-  patientId          String?  
-  patient            Patient?  @relation(fields: [patientId], references: [id]) 
-  hospitalId          String?  
-  hospital            Hospital?  @relation(fields: [hospitalId], references: [id]) 
-  nursingId          String?  
-  nursing            Nursing?  @relation(fields: [nursingId], references: [id]) 
-  adminId          String?  
-  admin            Admin?  @relation(fields: [adminId], references: [id]) 
-  labId          String?
-  lab            Lab?  @relation(fields: [labId], references: [id])
-
-
-
-
 
   transaction       Transaction? // Relation to Transaction (no `fields` or `references` here)
 }
@@ -210,15 +195,13 @@ model Transaction {
 //
 model Appointment {
   id                String   @id @default(cuid())
-  patientId         String
-  doctorId          String
-  serviceProviderId String?
   dateTime          DateTime
   bookedAt          DateTime @default(now())
   status            AppointmentStatus
+   patientId         String
   patient           Patient  @relation(fields: [patientId], references: [id])
-  doctor            Doctor   @relation(fields: [doctorId], references: [id])
-  serviceProvider   ServiceProvider? @relation(fields: [serviceProviderId], references: [id])
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
   payments          Payment[]
 }
 
@@ -278,14 +261,15 @@ model LabResult {
 
 model MedicalRecord {
   id                String   @id @default(cuid())
-  patientId         String
-  doctorId          String
+  
   diagnosis         String
   prescription      String
   notes             String?
-
+  patientId         String
   patient          Patient?  @relation(fields: [patientId], references: [id])
-  doctor            Doctor?  @relation(fields: [doctorId], references: [id])
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  
 }
 
 model Prescription {
@@ -306,4 +290,17 @@ model DoctorsAssistant {
   assignedDoctorId  String
   doctor            Doctor   @relation(fields: [assignedDoctorId], references: [id])
   permissions       String[]
+}
+
+
+// Feedback and Review Models
+
+model Feedback {
+  id                String   @id @default(cuid())
+  patientId         String
+  rating            Float
+  review            String
+  patient           Patient?  @relation(fields: [patientId], references: [id])
+  serviceProviderId String
+  serviceProvider   ServiceProvider? @relation(fields: [serviceProviderId], references: [id])
 }

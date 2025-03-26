@@ -13,6 +13,7 @@ datasource db {
 enum UserRole {
   PATIENT
   DOCTOR
+  SUPERADMIN
   ADMIN
   LAB
   HOSPITAL
@@ -27,6 +28,14 @@ enum ProviderType {
   NURSING
 }
 
+enum ServiceType {
+  HomeCare
+  VideoConsultation
+  OndeskAppointment
+  IntegratedCare
+  CollaborativeCare
+  LabTest
+}
 
 enum PaymentStatus {
   PAID
@@ -60,12 +69,13 @@ model User {
   password          String
   phone             String
   role              UserRole
-  dateOfBirth       DateTime
+  dateOfBirth       DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   patient           Patient?
   doctor            Doctor?
+  superAdmin        SuperAdmin?
   admin             Admin?
   lab               Lab?
   hospital          Hospital?
@@ -78,6 +88,13 @@ model User {
 }
 
 // Admin Model
+
+model SuperAdmin {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  permissions       String[]
+}   
 
 model Admin {
   id                String   @id @default(cuid())
@@ -128,10 +145,19 @@ model Doctor {
   medications       Medication[]
   assistants        DoctorsAssistant[]
   therapyPlans      TherapyPlan[]
+  requests          Request[]
   
 }
 
-
+model DoctorsAssistant {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  assignedDoctorId  String
+  doctor            Doctor   @relation(fields: [assignedDoctorId], references: [id])
+  requestPermissions       RequestPermission[]
+  
+}
 
 
 model Lab {
@@ -158,6 +184,19 @@ model Nursing {
   
 }
 
+
+
+
+//
+//Service Models
+//
+
+model Service {
+  id              Int    @id @default(autoincrement())
+  name            ServiceType
+  description     String 
+}
+
 //
 // Payment and Transaction Models
 //
@@ -174,7 +213,7 @@ model Payment {
   appointmentId     String?
   appointment       Appointment? @relation(fields: [appointmentId], references: [id])
 
-  transaction       Transaction? // Relation to Transaction (no `fields` or `references` here)
+  transaction       Transaction[] // Relation to Transaction (no `fields` or `references` here)
 }
 
 model Transaction {
@@ -265,8 +304,6 @@ model MedicalRecord {
   diagnosis         String
   prescription      String
   notes             String?
-  patientId         String
-  patient          Patient?  @relation(fields: [patientId], references: [id])
   userId            String
   user              User     @relation(fields: [userId], references: [id])
   
@@ -283,13 +320,47 @@ model Prescription {
   doctor            Doctor   @relation(fields: [doctorId], references: [id])
 }
 
-model DoctorsAssistant {
+
+
+// Permission, Request, Access Models
+
+model RequestPermission {
   id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id])
-  assignedDoctorId  String
-  doctor            Doctor   @relation(fields: [assignedDoctorId], references: [id])
-  permissions       String[]
+  name              String   // Name of the permission (e.g., "Manage Users")
+  description       String?  // Optional description of the permission
+  accessType        PermissionType // Enum to define the type of access (e.g., View, Edit, Delete)
+  requests          Request[] // Relation to multiple requests that use this permission
+
+ doctorsAssistantId String?
+ doctorsAssistant   DoctorsAssistant? @relation(fields: [doctorsAssistantId], references: [id])
+}
+
+enum PermissionType {
+  ACCEPT
+  REJECT
+  PENDING
+  VIEW
+  EDIT
+  DELETE
+  CREATE
+  UPDATE
+}
+
+model Request {
+  id                String   @id @default(cuid())
+  requestPermissions   RequestPermission[] // Many-to-many relation with Permission
+  status            RequestStatus // Enum to define the status of the request
+  createdAt         DateTime @default(now()) // Timestamp for when the request was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the request was last updated
+
+  doctorId          String?
+  doctor            Doctor? @relation(fields: [doctorId], references: [id])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 

@@ -21,14 +21,38 @@ enum UserRole {
   DOCTORSASSISTANT
 }
 
-enum ProviderType {
-  DOCTOR
-  HOSPITAL
-  LAB
-  NURSING
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
 }
 
-enum ServiceType {
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  INITIATED
+  PAID
+  REFUNDED
+  FAILED
+  CONFIRMED
+  CANCELLED
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+}
+
+
+enum Service {
   HomeCare
   VideoConsultation
   OndeskAppointment
@@ -37,12 +61,7 @@ enum ServiceType {
   LabTest
 }
 
-enum PaymentStatus {
-  PAID
-  PENDING
-  REFUNDED
-  FAILED
-}
+
 
 enum PaymentMethod {
   UPI
@@ -52,49 +71,104 @@ enum PaymentMethod {
   WALLET
 }
 
-enum AppointmentStatus {
+
+
+enum PermissionType {
+  ACCEPT
+  REJECT
   PENDING
-  CONFIRMED
-  CANCELLED
-  COMPLETED
+  VIEW
+  EDIT
+  DELETE
+  CREATE
+  UPDATE
 }
+
+enum ProviderType {
+  DOCTOR
+  HOSPITAL
+  LAB
+  NURSING
+}
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+
+
+
+
+
 
 //
 // Core Models
 //
 model User {
-  id                String   @id @default(cuid())
-  name              String
-  email             String   @unique
-  password          String
-  phone             String
-  role              UserRole
-  dateOfBirth       DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                String   @id @default(cuid()) // Unique identifier for the user
+  username          String?  @unique // Optional unique username
+  name              String // Full name of the user
+  email             String   @unique // Unique email address for the user
+  password          String // Encrypted password for authentication
+  phone             String // Contact phone number
+  role              UserRole // Enum to define the user's role (e.g., PATIENT, DOCTOR, ADMIN)
+  gender            Gender? // Optional gender field (e.g., MALE, FEMALE, OTHER)
+  dateOfBirth       DateTime? // Optional date of birth
+  bloodGroup        BloodGroup? // Optional blood group (e.g., A_POSITIVE, O_NEGATIVE)
+  address           Address? // Optional relation to the Address model
+  isActive          Boolean  @default(true) // Indicates if the user account is active
+  profilePic        String? // Optional profile picture URL
+  createdAt         DateTime @default(now()) // Timestamp for when the user was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the user was last updated
 
-  patient           Patient?
-  doctor            Doctor?
-  superAdmin        SuperAdmin?
-  admin             Admin?
-  lab               Lab?
-  hospital          Hospital?
-  nursing           Nursing?
-  doctorsAssistant  DoctorsAssistant?
-  payments          Payment[]
-  medicalRecords    MedicalRecord[]
-  appointments      Appointment[]
-
+  // Relations to other models
+  patient           Patient? // Relation to the Patient model (if the user is a patient)
+  doctor            Doctor? // Relation to the Doctor model (if the user is a doctor)
+  superAdmin        SuperAdmin? // Relation to the SuperAdmin model (if the user is a super admin)
+  admin             Admin? // Relation to the Admin model (if the user is an admin)
+  lab               Lab? // Relation to the Lab model (if the user is a lab provider)
+  hospital          Hospital? // Relation to the Hospital model (if the user is a hospital provider)
+  nursing           Nursing? // Relation to the Nursing model (if the user is a nursing provider)
+  doctorsAssistant  DoctorsAssistant? // Relation to the DoctorsAssistant model (if the user is an assistant)
+  payments          Payment[] // Relation to Payment model for tracking user payments
+  medicalRecords    MedicalRecord[] // Relation to MedicalRecord model for storing medical records
+  appointments      Appointment[] // Relation to Appointment model for user appointments
+  ratings           Rating[] // Relation to Rating model for user ratings
 }
 
-// Admin Model
+model Address {
+  id        String @id @default(cuid())
+  address   String
+  city      String
+  state     String
+  country   String
+  pincode   String
+  userId    String @unique // Marked as unique to define a one-to-one relation
+  user      User   @relation(fields: [userId], references: [id])
+}
 
+//
+// Admin Models
+//
 model SuperAdmin {
   id                String   @id @default(cuid())
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   permissions       String[]
-}   
+}
 
 model Admin {
   id                String   @id @default(cuid())
@@ -105,7 +179,33 @@ model Admin {
   canViewAllTransactions Boolean @default(true)
   canViewAllAppointments Boolean @default(true)
 }
-// Service User Model
+
+//
+// Service User Models
+//
+
+model ServiceProvider {
+  id                String   @id @default(cuid()) // Unique identifier for the service provider
+  name              String   // Name of the service provider (e.g., Doctor, Hospital)
+  providerType      ProviderType // Enum to define the type of provider (e.g., DOCTOR, HOSPITAL)
+  fee               Float?
+  experience        Int?
+  description       String?
+  service           Service[]
+  status            Status?
+  schedules         Schedule[]
+  education         Education[]  
+  workExperience    WorkExperience[]
+  awards            Award[]
+  clinicinfo       ClinicInfo[]
+  labResults        LabResult[]
+  therapyPlans      TherapyPlan[]
+  documents         String?
+  specialization    String
+  hospitalId        String?
+
+
+}
 
 model Patient {
   id                String   @id @default(cuid())
@@ -114,37 +214,23 @@ model Patient {
   address           String
   conditions        String[]
   allergies         Allergy[]
-  bloodGroup        String
+  bloodGroup        BloodGroup
   treatmentPlans    TherapyPlan[]
-  appointments      Appointment[]
+  
   prescriptions     Prescription[]
   labResults        LabResult[]
-  medications       Medication[]
-  feedbacks         Feedback[]
+  
+  
 }
 
 // Service Provider Models
-
-model ServiceProvider {
-   id                String   @id @default(cuid())
-  name              String
-  providerType      ProviderType
-  feedbacks         Feedback[] // Relation to Feedback
-  
-  
-}
 
 model Doctor {
   id                String   @id @default(cuid())
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
-  specialization    String
-  hospitalId        String?
   prescriptions     Prescription[]
-  labResults        LabResult[]
-  medications       Medication[]
   assistants        DoctorsAssistant[]
-  therapyPlans      TherapyPlan[]
   requests          Request[]
   
 }
@@ -155,17 +241,14 @@ model DoctorsAssistant {
   user              User     @relation(fields: [userId], references: [id])
   assignedDoctorId  String
   doctor            Doctor   @relation(fields: [assignedDoctorId], references: [id])
-  requestPermissions       RequestPermission[]
-  
+  requestPermissions RequestPermission[]
 }
-
 
 model Lab {
   id                String   @id @default(cuid())
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   servicesOffered   String[]
-  
 }
 
 model Hospital {
@@ -173,7 +256,6 @@ model Hospital {
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   servicesOffered   String[]
-  
 }
 
 model Nursing {
@@ -181,80 +263,6 @@ model Nursing {
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   servicesOffered   String[]
-  
-}
-
-
-
-
-//
-//Service Models
-//
-
-model Service {
-  id              Int    @id @default(autoincrement())
-  name            ServiceType
-  description     String 
-}
-
-//
-// Payment and Transaction Models
-//
-model Payment {
-  id                String   @id @default(cuid())
-  transactionId     String   @unique
-  amount            Float
-  status            PaymentStatus
-  paymentMethod     PaymentMethod
-  paymentDate       DateTime @default(now())
-  refundDetails     String?
-  userId            String
-  user              User     @relation(fields: [userId], references: [id])
-  appointmentId     String?
-  appointment       Appointment? @relation(fields: [appointmentId], references: [id])
-
-  transaction       Transaction[] // Relation to Transaction (no `fields` or `references` here)
-}
-
-model Transaction {
-  id                String   @id @default(cuid())
-  gatewayTransactionId String @unique
-  amount            Float
-  status            PaymentStatus
-  paymentMethod     PaymentMethod
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  refundDetails     String?
-  paymentId         String   @unique // Marked as `@unique` for one-to-one relation
-  payment           Payment  @relation(fields: [paymentId], references: [id])
-}
-
-//
-// Appointment and Related Models
-//
-model Appointment {
-  id                String   @id @default(cuid())
-  dateTime          DateTime
-  bookedAt          DateTime @default(now())
-  status            AppointmentStatus
-   patientId         String
-  patient           Patient  @relation(fields: [patientId], references: [id])
-  userId            String
-  user              User     @relation(fields: [userId], references: [id])
-  payments          Payment[]
-}
-
-model TherapyPlan {
-  id                String   @id @default(cuid())
-  planName          String
-  date              DateTime
-  type              String
-  status            String
-  details           String
-  patientId         String
-  doctorId          String
-  patient           Patient  @relation(fields: [patientId], references: [id])
-  doctor            Doctor   @relation(fields: [doctorId], references: [id])
 }
 
 //
@@ -277,11 +285,8 @@ model Medication {
   frequency         String
   duration          String
   status            String
-  patientId         String
-  patient           Patient  @relation(fields: [patientId], references: [id])
-  doctorId          String?  // Added field for relation with Doctor
-  doctor            Doctor?  @relation(fields: [doctorId], references: [id])
-  prescriptionId    String?  // Added field for relation with Prescription
+
+  prescriptionId    String?
   prescription      Prescription?  @relation(fields: [prescriptionId], references: [id])
 }
 
@@ -294,19 +299,17 @@ model LabResult {
   status            String
   patientId         String
   patient           Patient  @relation(fields: [patientId], references: [id])
-  doctorId          String?  // Added field for relation with Doctor
-  doctor            Doctor?  @relation(fields: [doctorId], references: [id])
+  serviceProvideId  String
+  serviceProvider   ServiceProvider   @relation(fields: [serviceProvideId], references: [id])
 }
 
 model MedicalRecord {
   id                String   @id @default(cuid())
-  
   diagnosis         String
   prescription      String
   notes             String?
   userId            String
   user              User     @relation(fields: [userId], references: [id])
-  
 }
 
 model Prescription {
@@ -320,58 +323,225 @@ model Prescription {
   doctor            Doctor   @relation(fields: [doctorId], references: [id])
 }
 
+//
+// Appointment and Related Models
+//
 
 
-// Permission, Request, Access Models
-
-model RequestPermission {
+model TherapyPlan {
   id                String   @id @default(cuid())
-  name              String   // Name of the permission (e.g., "Manage Users")
-  description       String?  // Optional description of the permission
-  accessType        PermissionType // Enum to define the type of access (e.g., View, Edit, Delete)
-  requests          Request[] // Relation to multiple requests that use this permission
+  planName          String
+  date              DateTime
+  type              String
+  status            String
+  details           String
 
- doctorsAssistantId String?
- doctorsAssistant   DoctorsAssistant? @relation(fields: [doctorsAssistantId], references: [id])
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id])
+  serviceProvideId  String
+  serviceProvider   ServiceProvider   @relation(fields: [serviceProvideId], references: [id])
 }
 
-enum PermissionType {
-  ACCEPT
-  REJECT
-  PENDING
-  VIEW
-  EDIT
-  DELETE
-  CREATE
-  UPDATE
+//
+// Payment and Transaction Models
+//
+model Payment {
+  id                String   @id @default(cuid())
+  transactionId     String   @unique
+  amount            Float
+  status            Status
+  paymentMethod     PaymentMethod
+  paymentDate       DateTime @default(now())
+  refundDetails     String?
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  appointmentId     String?
+  appointment       Appointment? @relation(fields: [appointmentId], references: [id])
+  transaction       Transaction[]
+}
+
+model Transaction {
+  id                String   @id @default(cuid())
+  gatewayTransactionId String @unique
+  amount            Float
+  status            Status
+  paymentMethod     PaymentMethod
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  refundDetails     String?
+  paymentId         String   @unique
+  payment           Payment  @relation(fields: [paymentId], references: [id])
+}
+
+//
+// Feedback and Review Models
+//
+model Rating {
+  id                String   @id @default(cuid()) // Unique identifier for the rating
+  doctorId          String   // ID of the doctor being rated
+  doctor            Doctor   @relation(fields: [doctorId], references: [id]) // Relation to the Doctor model
+  userId            String   // ID of the user who gave the rating
+  user              User     @relation(fields: [userId], references: [id]) // Relation to the User model
+  score             Float    // Rating score (e.g., 1.0 to 5.0)
+  comment           String?  // Optional comment or review text
+  createdAt         DateTime @default(now()) // Timestamp for when the rating was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the rating was last updated
+}
+
+//
+// Permission, Request, Access Models
+//
+model RequestPermission {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  accessType        PermissionType
+  requests          Request[]
+  doctorsAssistantId String?
+  doctorsAssistant   DoctorsAssistant? @relation(fields: [doctorsAssistantId], references: [id])
 }
 
 model Request {
   id                String   @id @default(cuid())
-  requestPermissions   RequestPermission[] // Many-to-many relation with Permission
-  status            RequestStatus // Enum to define the status of the request
-  createdAt         DateTime @default(now()) // Timestamp for when the request was created
-  updatedAt         DateTime @updatedAt // Timestamp for when the request was last updated
-
+  requestPermissions RequestPermission[]
+  status            Status
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   doctorId          String?
-  doctor            Doctor? @relation(fields: [doctorId], references: [id])
+  doctor            Doctor?  @relation(fields: [doctorId], references: [id])
 }
 
-enum RequestStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
+// Appointment Schedule and Slot creating -------------------------------------
+
+model Appointment {
+  id                String   @id @default(cuid()) // Unique identifier for the appointment
+  service           Service[] // Enum to define the type of service (e.g., HomeCare, VideoConsultation)
+  status            Status // Enum to track the status of the appointment (e.g., PENDING, CONFIRMED)
+  dateTime          DateTime // Date and time of the appointment
+  bookedAt          DateTime @default(now()) // Timestamp for when the appointment was booked
+  reason            String? // Optional reason for the appointment
+
+  // Booking for Others
+  isForOthers       Boolean  @default(false) // Indicates if the appointment is for someone else
+  othersAppointment OthersAppointment? // Relation to the OthersAppointment model
+
+  // Slot and Location
+ 
+  appointmentSlot   Slot
+  currentLocation   CurrentLocation?
+
+  // Relations
+  userId            String // ID of the user who booked the appointment
+  user              User   @relation(fields: [userId], references: [id]) // Relation to the User model
+  payments          Payment[] // Relation to Payment model for tracking payments
+  createdAt         DateTime @default(now()) // Timestamp for when the appointment was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the appointment was last updated
 }
 
+model OthersAppointment {
+  id                String   @id @default(cuid()) // Unique identifier for the others' appointment
+  name              String   // Name of the person for whom the appointment is booked
+  contact           String   // Contact number of the person
+  email             String?  // Email of the person (optional)
+  relationship      String   // Relationship with the person (e.g., Friend, Family, Colleague)
+  reason            String?  // Reason for the appointment (optional)
 
-// Feedback and Review Models
+  // Relations
+  appointmentId     String  @unique // ID of the associated appointment
+  appointment       Appointment @relation(fields: [appointmentId], references: [id]) // Relation to the Appointment model
 
-model Feedback {
-  id                String   @id @default(cuid())
-  patientId         String
-  rating            Float
-  review            String
-  patient           Patient?  @relation(fields: [patientId], references: [id])
-  serviceProviderId String
-  serviceProvider   ServiceProvider? @relation(fields: [serviceProviderId], references: [id])
+  createdAt         DateTime @default(now()) // Timestamp for when the record was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the record was last updated
 }
+
+model Schedule {
+  id                String   @id @default(cuid()) // Unique identifier for the schedule
+  date              DateTime? // Specific date for the schedule (used for temporary schedules)
+  dayOfWeek         WeekDay?  // Day of the week (e.g., "Monday", "Tuesday") for recurring schedules
+  isRecurring       Boolean  @default(false) // Indicates if the schedule is recurring
+  recurrenceType    RecurrenceType?  // Type of recurrence (e.g., "Daily", "Weekly")
+  startTime         DateTime // Start time of the schedule
+  endTime           DateTime // End time of the schedule
+  slotDuration      Int      // Duration of each slot in minutes (e.g., 15 for 15-minute slots)
+  location          String   // Location of the schedule (e.g., Clinic, Hospital, Online)
+  isAvailable       Boolean  @default(true) // Indicates if the schedule is available for booking
+  serviceType       Service  // Enum to define the type of service (e.g., HomeCare, VideoConsultation)
+
+  // Relations
+  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
+  serviceProviders   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+  slots             Slot[] // Relation to Slot model for individual appointment slots
+
+  createdAt         DateTime @default(now()) // Timestamp for when the schedule was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the schedule was last updated
+}
+
+model Slot {
+  id                String   @id @default(cuid()) // Unique identifier for the slot
+  startTime         DateTime // Start time of the slot
+  endTime           DateTime // End time of the slot
+  isBooked          Boolean  @default(false) // Indicates if the slot is booked
+  scheduleId        String   // ID of the parent schedule
+  schedule          Schedule @relation(fields: [scheduleId], references: [id]) // Relation to the Schedule model
+  appointmentId     String?  // ID of the booked appointment (if any)
+  appointment       Appointment? @relation(fields: [appointmentId], references: [id]) // Relation to the Appointment model
+  clinicInfo        ClinicInfo
+
+  bookedAt         DateTime @default(now()) // Timestamp for when the slot was created
+  updatedAt         DateTime @updatedAt // Timestamp for when the slot was last updated
+}
+
+model ClinicInfo {
+  id          String   @id @default(cuid()) // Unique identifier for the clinic
+  clinicName  String   // Name of the clinic
+  address     String   // Address of the clinic
+  contact     String   // Contact information for the clinic
+  images      String[] // Array of image URLs for the clinic
+
+  // Relations
+  slotId      String?  // Optional relation to a slot
+  slot        Slot?    @relation(fields: [slotId], references: [id]) // Relation to the Slot model
+
+  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
+  serviceProviders   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+  createdAt   DateTime @default(now()) // Timestamp for when the clinic was created
+  updatedAt   DateTime @updatedAt // Timestamp for when the clinic was last updated
+}
+
+model Education {
+  id          String   @id @default(cuid()) // Unique identifier for the education record
+  university  String   // Name of the university
+  degree      String   // Degree obtained
+  duration    String   // Duration of the education (e.g., "2015-2019")
+  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
+  serviceProvider   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+}
+
+model WorkExperience {
+  id          String   @id @default(cuid()) // Unique identifier for the work experience record
+  clinic      String   // Name of the clinic or organization
+  duration    String   // Duration of the work experience (e.g., "2 years")
+  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
+  serviceProvider   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+}
+
+model Award {
+  id          String   @id @default(cuid()) // Unique identifier for the award
+  date        String   // Date of the award
+  title       String   // Title of the award
+  description String   // Description of the award
+  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
+  serviceProvider   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+}
+
+model CurrentLocation {
+  id          String   @id @default(cuid()) // Unique identifier for the location
+  lat         Float    // Latitude of the location
+  long        Float    // Longitude of the location
+
+  // Relations
+  appointmentId String? @unique// Optional relation to an appointment
+  appointment Appointment? @relation(fields: [appointmentId], references: [id]) // Relation to Appointment model
+  
+}
+

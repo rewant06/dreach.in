@@ -40,6 +40,32 @@ enum Status {
   CANCELLED
 }
 
+enum PaymentStatus {
+  INITIATED
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ActionType {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+}
+
 enum BloodGroup {
   A_POSITIVE
   A_NEGATIVE
@@ -108,7 +134,6 @@ enum RecurrenceType {
   YEARLY
 }
 
-
 //
 // Core Models
 //
@@ -123,7 +148,7 @@ model User {
   gender            Gender? // Optional gender field (e.g., MALE, FEMALE, OTHER)
   dateOfBirth       DateTime? // Optional date of birth
   bloodGroup        BloodGroup? // Optional blood group (e.g., A_POSITIVE, O_NEGATIVE)
-  address           Address? // Optional relation to the Address model
+  address           Address[] // Optional relation to the Address model
   isActive          Boolean  @default(true) // Indicates if the user account is active
   profilePic        String? // Optional profile picture URL
   createdAt         DateTime @default(now()) // Timestamp for when the user was created
@@ -134,7 +159,7 @@ model User {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
 
 
-  patient           Patient? // Relation to the Patient model (if the user is a patient)
+  patient           Patient[] // Relation to the Patient model (if the user is a patient)
   doctor            Doctor? // Relation to the Doctor model (if the user is a doctor)
   superAdmin        SuperAdmin? // Relation to the SuperAdmin model (if the user is a super admin)
   admin             Admin? // Relation to the Admin model (if the user is an admin)
@@ -150,16 +175,16 @@ model User {
   auditLogs         AuditLog[] // Relation to AuditLog model for tracking user actions
 }
 
-
-
 //
 // Admin Models
 //
+
 model SuperAdmin {
   id                String   @id @default(cuid())
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
   permissions       String[]
+  status            Status
 }
 
 model Admin {
@@ -186,29 +211,31 @@ model ServiceProvider {
   service           Service[]
   status            Status?
   schedules         Schedule[]
+  appointment       Appointment[]
   education         Education[]  
   workExperience    WorkExperience[]
   awards            Award[]
-  clinicinfo       ClinicInfo[]
   labResults        LabResult[]
   therapyPlans      TherapyPlan[]
   documents         String?
   specialization    String
   hospitalId        String?
 
+  clinicInfoId String? // Optional foreign key for the ClinicInfo
+  clinicInfo   ClinicInfo? @relation(fields: [clinicInfoId], references: [id]) // Optional relation to ClinicInfo
   tags              Tag[] @relation("ServiceProviderTags")
 }
 
 model Patient {
   id                String   @id @default(cuid())
-  userId            String   @unique
+  userId            String  
   user              User     @relation(fields: [userId], references: [id])
-  address           Address?
+  address           Address[]
   conditions        String[]
   allergies         Allergy[]
   bloodGroup        BloodGroup
   treatmentPlans    TherapyPlan[]
-  
+  appointment       Appointment[]
   prescriptions     Prescription[]
   labResults        LabResult[]
   
@@ -347,8 +374,8 @@ model Payment {
   refundDetails     String?
   userId            String
   user              User     @relation(fields: [userId], references: [id])
-  appointmentId     String?
-  appointment       Appointment? @relation(fields: [appointmentId], references: [id])
+  appointmentId String  // Required foreign key for the Appointment
+  appointment  Appointment @relation(fields: [appointmentId], references: [id]) // Required relation to the Appointment model
   transaction       Transaction[]
 }
 
@@ -361,6 +388,7 @@ model Transaction {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   refundDetails     String?
+
   paymentId         String   @unique
   payment           Payment  @relation(fields: [paymentId], references: [id])
 }
@@ -417,17 +445,19 @@ model Appointment {
   isForOthers       Boolean  @default(false) // Indicates if the appointment is for someone else
   othersAppointment OthersAppointment? // Relation to the OthersAppointment model
 
-  // Slot and Location
- 
-  slot              Slot[]
   currentLocation   CurrentLocation?
-
-  // Relations
+  slotId            String @unique // Required ID of the associated slot
+  slot              Slot     @relation(fields: [slotId], references: [id]) // Required relation to the Slot model
   userId            String // ID of the user who booked the appointment
   user              User   @relation(fields: [userId], references: [id]) // Relation to the User model
-  payments          Payment[] // Relation to Payment model for tracking payments
+  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
+  serviceProvider   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+  patientId         String // ID of the patient (if applicable)
+  patient          Patient @relation(fields: [patientId], references: [id]) // Relation to the Patient model
+  payment         Payment[] // Optional relation to the Payment model
   createdAt         DateTime @default(now()) // Timestamp for when the appointment was created
   updatedAt         DateTime @updatedAt // Timestamp for when the appointment was last updated
+  
 
   tags              Tag[] @relation("AppointmentTags")
 }
@@ -462,7 +492,7 @@ model Schedule {
   location          String   // Location of the schedule (e.g., Clinic, Hospital, Online)
   isAvailable       Boolean  @default(true) // Indicates if the schedule is available for booking
   serviceType       Service  // Enum to define the type of service (e.g., HomeCare, VideoConsultation)
-
+  status Status @default(PENDING) // Status of the schedule (e.g., ACTIVE, INACTIVE)
   // Relations
   serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
   serviceProviders   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
@@ -479,9 +509,8 @@ model Slot {
   isBooked          Boolean  @default(false) // Indicates if the slot is booked
   scheduleId        String   // ID of the parent schedule
   schedule          Schedule @relation(fields: [scheduleId], references: [id]) // Relation to the Schedule model
-  appointmentId     String?  // Optional ID of the associated appointment
-  appointment       Appointment? @relation(fields: [appointmentId], references: [id]) // Relation to the Appointment model
-  clinicInfoId      String @unique // ID of the associated clinic
+  appointment       Appointment? 
+  clinicInfoId      String // ID of the associated clinic
   clinicInfo        ClinicInfo @relation(fields: [clinicInfoId], references: [id]) // Required relation to the ClinicInfo model
 
   bookedAt         DateTime @default(now()) // Timestamp for when the slot was created
@@ -498,9 +527,7 @@ model ClinicInfo {
 
   // Relations
   slot              Slot[]    // Optional relation to a Slot model
-
-  serviceProviderId String // ID of the service provider (e.g., doctor, hospital)
-  serviceProviders   ServiceProvider @relation(fields: [serviceProviderId], references: [id]) // Relation to the ServiceProvider model
+   serviceProviders ServiceProvider[] // One-to-many relation with ServiceProvider
   createdAt   DateTime @default(now()) // Timestamp for when the clinic was created
   updatedAt   DateTime @updatedAt // Timestamp for when the clinic was last updated
 }
@@ -512,11 +539,11 @@ model Address {
   state     String
   country   String
   pincode   String
-  userId    String @unique // Marked as unique to define a one-to-one relation
+  userId    String // Marked as unique to define a one-to-one relation
   user      User   @relation(fields: [userId], references: [id])
 
   clinicInfo  ClinicInfo? 
-  patientId String @unique // Optional relation to a patient
+  patientId  String 
   patient     Patient @relation(fields: [patientId], references: [id]) // Relation to the Patient model
 }
 
@@ -561,7 +588,7 @@ model AuditLog {
   id          String   @id @default(cuid())
   entity      String   // Name of the entity (e.g., "User", "Appointment")
   entityId    String   // ID of the entity being modified
-  action      String   // Action performed (e.g., "CREATE", "UPDATE", "DELETE")
+  actionType ActionType // Type of action performed
   status      Status  // Optional field to store additional details about the action
   ipAddress   String?  // IP address of the user performing the action
   device      String?  // Device used for the action
